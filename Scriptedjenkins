@@ -1,0 +1,52 @@
+node('Maven') {
+    // Tools
+    def mvnHome = tool name: 'Maven-3.8.9', type: 'maven'
+    
+    // Environment
+    def IMAGE_NAME = "amrgodovich/python-iti-main-jenkins"
+
+    try {
+        stage('Checkout') {
+            git branch: 'main', url: 'https://github.com/amrgodovich/jenkins-lab2'
+        }
+
+        stage('Build') {
+            echo "Build Number: ${currentBuild.number}"
+            if (currentBuild.number < 5) {
+                error("❌ Build number is less than 5. Stopping pipeline!")
+            }
+            sh "${mvnHome}/bin/mvn clean package"
+        }
+
+        stage('Docker Build') {
+            sh "docker build -t ${IMAGE_NAME}:${currentBuild.number} ."
+        }
+
+        stage('Docker Login') {
+            withCredentials([string(credentialsId: 'dockerhub-pass', variable: 'DOCKERHUB_PASS')]) {
+                sh "echo $DOCKERHUB_PASS | docker login -u amrgodovich --password-stdin || exit 1"
+            }
+        }
+
+        stage('Docker Push') {
+            sh "docker push ${IMAGE_NAME}:${currentBuild.number}"
+        }
+
+        stage('Deploy') {
+            sh """
+                echo "🚀 Deploying container..."
+                docker stop python-app || true
+                docker rm python-app || true
+                docker run -d -p 9000:8080 --name python-app ${IMAGE_NAME}:${currentBuild.number}
+                echo "✅ App is running on: 9000"
+            """
+        }
+
+    } catch (err) {
+        echo "❌ Pipeline failed!"
+        throw err
+    } finally {
+        echo "🧹 Cleaning workspace..."
+        cleanWs()
+    }
+}
