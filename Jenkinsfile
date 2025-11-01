@@ -39,7 +39,7 @@ pipeline {
         steps {
             withCredentials([string(credentialsId: 'dockerhub-pass', variable: 'DOCKERHUB_PASS')]) {
                 sh """
-                echo "$DOCKERHUB_PASS" | docker login -u beshoybotros --password-stdin || exit 1
+                echo "$DOCKERHUB_PASS" | docker login -u amrgodovich --password-stdin || exit 1
                 """
             }
         }
